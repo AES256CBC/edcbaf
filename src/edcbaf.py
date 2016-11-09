@@ -28,12 +28,12 @@ import yaml
 
 APP_NAME = os.path.basename(sys.argv[0]).split('.')[0]
 BASE_DIR = os.path.dirname(__file__)
-LOGFILE = '%s/%s.log' % (BASE_DIR, APP_NAME)
+LOGFILE = '/tmp/%s.log' % APP_NAME # '%s/%s.log' % (BASE_DIR, APP_NAME)
 
 DBF = '/private/edcbaf.yaml'
 SVR = raw_input('imaps-server: ')
 PRT = 993
-ACT = map(lambda r: r['act'], yaml.load(open(DBF, 'rb').read())['yp'])
+ACT = yaml.load(open(DBF, 'rb').read())['yp']
 PID = getpass.getpass()
 
 class ClsTool(object):
@@ -237,7 +237,9 @@ if __name__ == '__main__':
 
   logging.info('%s start %s' % (APP_NAME, BASE_DIR))
   for act in ACT:
-    cf = ClsFetch(name=APP_NAME, basedir=BASE_DIR, act=act)
+    logging.debug('%s: d(%d)f(%d)' % (act['act'], act['disable'], act['flg']))
+    if act['disable'] or act['flg'] == 0: continue
+    cf = ClsFetch(name=APP_NAME, basedir=BASE_DIR, act=act['act'])
     if True:
       cf.connact()
     else:
