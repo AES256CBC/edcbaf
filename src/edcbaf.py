@@ -33,7 +33,7 @@ LOGFILE = '%s/%s.log' % (BASE_DIR, APP_NAME)
 DBF = '/private/edcbaf.yaml'
 SVR = raw_input('imaps-server: ')
 PRT = 993
-ACT = map(lambda r: r['act'], yaml.load(open(DBF, 'rb').read())['yp'][0])
+ACT = map(lambda r: r['act'], yaml.load(open(DBF, 'rb').read())['yp'])
 PID = getpass.getpass()
 
 class ClsTool(object):
@@ -151,14 +151,19 @@ class ClsFetch(object):
     if not os.path.exists(self.dn): os.mkdir(self.dn)
     self.ct = ClsTool(self.name, self.basedir, self.act)
 
-  def readmsg(self, num, rd):
-    '''num: integer'''
+  def readmsg(self, mode, nu, rd):
+    '''mode: 0=number/1=uid, nu: number/uid integer'''
     r, d = rd
-    # ('OK', [('num (RFC822 {...}', '<<MSG>>'), ')', 'num (FLAGS (\\Seen *))'])
+    # mode==0
+    #  ('OK', [('num (RFC822 {...}', '<<MSG>>'), ')',
+    #          'num (FLAGS (\\Seen *))'])
+    # mode==1
+    #  ('OK', [('num (UID uid RFC822 {...}', '<<MSG>>'), ')',
+    #          'num (FLAGS (\\Seen *))'])
     self.logger.info(
       '%s[%s]<<...>>%s[%s]' % (r, d[0][0], d[1], d[2])) # OK[...]<<M>>)[...]
     s = d[0][1].replace('\x0D', '')
-    # self.logger.debug('%s[%s][%s]' % (r, num, s)) # OK[num][msg(hdr+bdy)]
+    # self.logger.debug('%s[%s][%s]' % (r, nu, s)) # OK[nu][msg(hdr+bdy)]
     ul = self.ct.readact(s)
     self.logger.debug(ul[2]) # subj u'' -> 'utf-8'
     sys.stderr.write('%s\n' % ul[2].encode('cp932', 'replace')) # subj encode
@@ -173,7 +178,7 @@ class ClsFetch(object):
       f.close()
       r = 'OK'
       d = [('%d (RFC822 {%d}' % (i, len(m)), m), ')', '%d (FLAGS (\\Seen)' % i]
-      self.readmsg(i, (r, d))
+      self.readmsg(0, i, (r, d))
 
   def connact(self):
     m = imaplib.IMAP4_SSL(SVR, PRT)
@@ -181,15 +186,36 @@ class ClsFetch(object):
     # ('OK', ['AUTHENTICATE completed - Mailbox size in bytes is 4346874'])
     m.select()
     # ('OK', ['56'])
+
+    '''# dangerous way (fetch and delete by num)
     res, dat = m.search(None, 'ALL')
     # ('OK', ['1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 '\
     #         '21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 '\
     #         '41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 '])
     for num in dat[0].split(): # num: string
-      self.readmsg(int(num), m.fetch(num, '(RFC822)'))
+      self.readmsg(0, int(num), m.fetch(num, '(RFC822)'))
       m.store(num, '+FLAGS', '\\Deleted') # *** !!! CAUTION !!! ***
-      # m.uid('+FLAGS', num, '\\Deleted') # not tested
-    # m.expunge() # *** !!! CAUTION !!! *** # may be deleted without call this
+    m.expunge() # *** !!! CAUTION !!! *** # may be deleted without call this
+    '''
+
+    '''# safety (fetch and delete by uid)
+    res, dat = m.uid('SEARCH', 'ALL')
+    # ('OK', ['205 207 '])
+    m.uid('FETCH', '205:207', '(FLAGS UID)')
+    # ('OK', ['1 (FLAGS (\\Recent) UID 205)', '2 (FLAGS (\\Recent) UID 207)'])
+    m.uid('FETCH', '205:207', '(RFC822)') # test multi uid fetch
+    # ('OK', [('1 (UID 205 RFC822 {4372}', '<<MSG>>'), ')',
+    #         ('2 (UID 207 RFC822 {4204}', '<<MSG>>'), ')',
+    #         '1 (FLAGS (\\Seen \\Recent))', '2 (FLAGS (\\Seen \\Recent))'])
+    m.uid('STORE', '205', '+FLAGS', '(\\Deleted)')
+    # ('OK', ['1 (FLAGS (\\Deleted \\Seen) UID 205)'])
+    '''
+
+    res, dat = m.uid('SEARCH', 'ALL')
+    for uid in dat[0].split(): # uid: string
+      self.readmsg(1, int(uid), m.uid('FETCH', uid, '(RFC822)'))
+      m.uid('STORE', uid, '+FLAGS', '(\\Deleted)')
+
     m.close()
     # ('OK', ['CLOSE completed - Now in authenticated state'])
     m.logout()
