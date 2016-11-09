@@ -116,7 +116,7 @@ class ClsTool(object):
       rl = reversed(self.mid.split('@', 1))
       safemid = '_._'.join(re.sub(q, '_', _) for _ in rl)
       self.fname = '%s/%s.msg' % (dn, safemid)
-    self.logger.info(self.fname)
+    self.logger.debug(self.fname)
     ofp = open(self.fname, 'wb') # overwrite (assume same name)
     ofp.write(self.s)
     ofp.close()
@@ -135,7 +135,11 @@ class ClsTool(object):
     self.logger.info(
       'eid=[%s], size=%d, id=[%s], from=[%s], to=[%s]' % (
         self.eid, len(self.s), self.mid, self.snd, self.rcp))
-    return u'\n'.join(self.entity_check(self.msg, 0))
+    sndr = self.dec_mime_header(self.snd)
+    rcpt = self.dec_mime_header(self.rcp)
+    subj = self.dec_mime_header(self.sbj)
+    whole_body = u'\n'.join(self.entity_check(self.msg, 0))
+    return (sndr, rcpt, subj, whole_body)
 
 class ClsFetch(object):
   def __init__(self, **cf):
@@ -147,14 +151,18 @@ class ClsFetch(object):
     if not os.path.exists(self.dn): os.mkdir(self.dn)
     self.ct = ClsTool(self.name, self.basedir, self.act)
 
-  def readmsg(self, rd):
+  def readmsg(self, num, rd):
+    '''num: integer'''
     r, d = rd
     # ('OK', [('num (RFC822 {...}', '<<MSG>>'), ')', 'num (FLAGS (\\Seen *))'])
     self.logger.info(
       '%s[%s]<<...>>%s[%s]' % (r, d[0][0], d[1], d[2])) # OK[...]<<M>>)[...]
     s = d[0][1].replace('\x0D', '')
     # self.logger.debug('%s[%s][%s]' % (r, num, s)) # OK[num][msg(hdr+bdy)]
-    self.logger.debug(self.ct.readact(s)) # u'' -> 'utf-8'
+    ul = self.ct.readact(s)
+    self.logger.debug(ul[2]) # subj u'' -> 'utf-8'
+    sys.stderr.write('%s\n' % ul[2].encode('cp932', 'replace')) # subj encode
+    self.logger.debug(ul[3]) # whole_body u'' -> 'utf-8'
 
   def dummy(self):
     for i in range(1, 7):
@@ -165,7 +173,7 @@ class ClsFetch(object):
       f.close()
       r = 'OK'
       d = [('%d (RFC822 {%d}' % (i, len(m)), m), ')', '%d (FLAGS (\\Seen)' % i]
-      self.readmsg((r, d))
+      self.readmsg(i, (r, d))
 
   def connact(self):
     m = imaplib.IMAP4_SSL(SVR, PRT)
@@ -177,8 +185,8 @@ class ClsFetch(object):
     # ('OK', ['1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 '\
     #         '21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 '\
     #         '41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 '])
-    for num in dat[0].split():
-      self.readmsg(m.fetch(num, '(RFC822)'))
+    for num in dat[0].split(): # num: string
+      self.readmsg(int(num), m.fetch(num, '(RFC822)'))
       m.store(num, '+FLAGS', '\\Deleted') # *** !!! CAUTION !!! ***
       # m.uid('+FLAGS', num, '\\Deleted') # not tested
     # m.expunge() # *** !!! CAUTION !!! *** # may be deleted without call this
