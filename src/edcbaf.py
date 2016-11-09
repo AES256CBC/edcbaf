@@ -185,10 +185,11 @@ class ClsFetch(object):
     s = d[0][1].replace('\x0D', '')
     # self.logger.debug('%s[%s][%s]' % (r, nu, s)) # OK[nu][msg(hdr+bdy)]
     ul = self.ct.readact(s)
+    us = u'<<Subject>>\n%s' % ul[2]
     if os.name != 'nt':
-      self.logger.info(ul[2]) # subj u'' -> 'utf-8'
+      self.logger.info(us) # subj u'' -> 'utf-8'
     else:
-      self.logger.debug(ul[2]) # subj u'' -> 'utf-8'
+      self.logger.debug(us) # subj u'' -> 'utf-8'
       sys.stderr.write('%s\n' % ul[2].encode('cp932', 'replace')) # subj encode
     self.logger.debug(ul[3]) # whole_body u'' -> 'utf-8'
 
@@ -260,7 +261,7 @@ if __name__ == '__main__':
 
   logging.info('%s start %s' % (APP_NAME, BASE_DIR))
   for act in ACT:
-    logging.debug('%s: d(%d)f(%d)' % (act['act'], act['disable'], act['flg']))
+    logging.debug('d(%d)f(%d) %s:' % (act['disable'], act['flg'], act['act']))
     if act['disable'] or act['flg'] == 0: continue
     cf = ClsFetch(name=APP_NAME, basedir=BASE_DIR, act=act['act'])
     if True:
