@@ -27,10 +27,15 @@ wrong dns or disconnected ?
   socket.gaierror:\
    (11001, 'getaddrinfo failed')
 
-wrong password or account does not exist ?
+wrong password or account does not exist ? 1
  m.login(...)
   imaplib.error:\
     [UNAVAILABLE] (#AUTH803) Service is not available; please try again later.
+
+wrong password or account does not exist ? 2
+ m.login(...)
+  imaplib.error:\
+    [AUTHENTICATIONFAILED] (#AUTH012) Incorrect username or password.
 '''
 
 import sys, os
