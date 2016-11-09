@@ -165,8 +165,11 @@ class ClsFetch(object):
     s = d[0][1].replace('\x0D', '')
     # self.logger.debug('%s[%s][%s]' % (r, nu, s)) # OK[nu][msg(hdr+bdy)]
     ul = self.ct.readact(s)
-    self.logger.debug(ul[2]) # subj u'' -> 'utf-8'
-    sys.stderr.write('%s\n' % ul[2].encode('cp932', 'replace')) # subj encode
+    if os.name != 'nt':
+      self.logger.info(ul[2]) # subj u'' -> 'utf-8'
+    else:
+      self.logger.debug(ul[2]) # subj u'' -> 'utf-8'
+      sys.stderr.write('%s\n' % ul[2].encode('cp932', 'replace')) # subj encode
     self.logger.debug(ul[3]) # whole_body u'' -> 'utf-8'
 
   def dummy(self):
