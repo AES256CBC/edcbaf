@@ -11,6 +11,26 @@ default mailboxes ?
  sent <- ?
  junk <- spam
  trash <- ?
+
+disconnected ?
+ m = imaplib.IMAP4_SSL(...)
+  socket.error:\
+   (10060, 'Operation timed out')
+
+wrong servername ?
+ m = imaplib.IMAP4_SSL(...)
+  socket.error:\
+   (10049, "Can't assign requested address")
+
+wrong dns or disconnected ?
+ m = imaplib.IMAP4_SSL(...)
+  socket.gaierror:\
+   (11001, 'getaddrinfo failed')
+
+wrong password or account does not exist ?
+ m.login(...)
+  imaplib.error:\
+    [UNAVAILABLE] (#AUTH803) Service is not available; please try again later.
 '''
 
 import sys, os
